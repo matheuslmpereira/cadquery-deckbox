@@ -1,0 +1,2 @@
+cadquery==2.6.1
+ocp_vscode==3.0.1
