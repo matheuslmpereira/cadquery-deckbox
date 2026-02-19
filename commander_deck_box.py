@@ -1,134 +1,14 @@
 import cadquery as cq
 import math
-from dataclasses import dataclass
-from pathlib import Path
+
+from domain_specs import BoxSpec, DeckSpec, LidSpec, SideDepressionSpec, default_build_options
 
 try:
     from ocp_vscode import show
 except ImportError:
     show = None
 
-# Versionamento simples para rastrear alterações de geometria
-MODEL_VERSION = "v3.0.0"
-MODEL_CHANGELOG = {
-    "v3.0.0": "Versao estavel e imprimivel validada em PETG.",
-    "v2.0.25": "Reduz tamanho dos detentes em 20%.",
-    "v2.0.24": "Move detentes da tampa para a face inferior usando modo z_inner.",
-    "v2.0.23": "Corrige z_outer/z_inner para aplicar detentes em faces Z reais da tampa (nao mais alias de Y).",
-    "v2.0.22": "Padroniza nomenclatura de detentes para face Z (z_outer/z_inner), mantendo compatibilidade com y_outer/y_inner.",
-    "v2.0.21": "Reposiciona detentes para face externa no eixo horizontal (modo y_outer).",
-    "v2.0.20": "Restringe detentes ao modo x_inner para evitar aplicacao nas faces externas verticais da tampa.",
-    "v2.0.19": "Corrige orientacao dos detentes por normal de face (inner/outer) para aplicacao no lado correto.",
-    "v2.0.18": "Adiciona seletor de face dos detentes para teste rapido de posicionamento (x/y interno/externo).",
-    "v2.0.17": "Desfaz ordem do boolean no corpo inicial da tampa e retoma fluxo anterior com aplicacao de detentes.",
-    "v2.0.16": "Aplica boolean do insert frontal no corpo inicial da tampa (antes de arredondamentos e detentes).",
-    "v2.0.15": "Adiciona deslocamento de preview da tampa (explode) para melhor visualizacao no OCP CAD viewer.",
-    "v2.0.14": "Posiciona detentes na face interna da tampa (voltada para dentro da caixa).",
-    "v2.0.13": "Reposiciona detentes para a face externa da tampa e adiciona seletor explicito de face.",
-    "v2.0.12": "Adiciona 2 detentes na tampa para controle de fechamento, com corte correspondente em 80% no corpo.",
-    "v2.0.11": "Aumenta chanfro da depressao para referencia diagonal (hipotenusa) e reduz remanescente de angulo reto.",
-    "v2.0.10": "Define chanfro da depressao igual a profundidade (3.0 mm) para eliminar ombro de 90 graus.",
-    "v2.0.9": "Aumenta novamente o chanfro da depressao lateral para eliminar remanescente de angulo reto.",
-    "v2.0.8": "Aumenta o chanfro da depressao lateral para remover angulos retos na face da parede.",
-    "v2.0.7": "Aumenta hex_tip_offset_mm para ajustar a inclinacao do hexagono do trilho no sentido correto.",
-    "v2.0.6": "Reverte taper do sulco e aumenta o angulo do hexagono do trilho da tampa pelo perfil.",
-    "v2.0.5": "Aumenta a angulacao do sulco da tampa com taper: entrada mais folgada e fundo mais justo para maior pressao vertical.",
-    "v2.0.4": "Ajusta profundidade da depressao para manter 1 mm de parede principal com espessura externa de 4 mm.",
-    "v2.0.3": "Reforca paredes para carga na tampa, aprofunda depressao mantendo alma de 1 mm e amplia bordas do painel.",
-    "v2.0.2": "Corrige STL da tampa para slicer com boolean anti-coplanar no insert frontal.",
-    "v2.0.1": "Reduz espessura da base interna para 0.56 mm (2 camadas de 0.28 mm) visando impressao sem suporte.",
-    "v2.0.0": "Baseline estavel: paredes minimas viaveis, acabamento refinado e encaixe funcional.",
-    "v1.0.12": "Aplica arredondamento apenas na face frontal da tampa, usando o mesmo raio externo da caixa.",
-    "v1.0.11": "Corrige tampa vazada: rebaixo da tampa passa a usar apenas a intersecao com o insert frontal.",
-    "v1.0.10": "Nova abordagem para shape frontal da tampa: corta com o mesmo cutter da caixa e depois aplica o insert.",
-    "v1.0.9": "Evita sobreposicao ao inserir o shape frontal na tampa: abre rebaixo na intersecao antes da mescla.",
-    "v1.0.8": "Mescla na tampa o volume removido da entrada frontal da caixa (complemento real do shape).",
-    "v1.0.7": "Aplica o mesmo shape da entrada frontal da caixa na tampa para continuidade visual.",
-    "v1.0.6": "Reduz folga de encaixe da tampa para ajuste mais justo com atrito (FDM).",
-    "v1.0.5": "Arredonda arestas externas da caixa (verticais e base) para reduzir impacto de quina.",
-    "v1.0.4": "Vincula a altura do corte frontal a altura da tampa para manter proporcao apos redimensionar paredes.",
-    "v1.0.3": "Compensa a intrusao da tampa aumentando a altura interna util da caixa em 1x a altura da tampa.",
-    "v1.0.2": "Adiciona depressao de 1.0 mm nas quatro faces laterais externas da caixa.",
-    "v1.0.1": "Interno sem arredondamento e trilho com respiro extra para encaixe FDM mais folgado.",
-    "v1.0.0": "Baseline estavel e funcional aprovado para caixa + tampa hex com corte negativo alinhado.",
-    "v0.9.4": "Simplifica para cutter unico alinhado (remove corte duplo e evita falha booleana).",
-    "v0.9.3": "Remove degrau duplo no sulco: cutter unico com extensao continua para baixo.",
-    "v0.9.2": "Corrige artefatos no canto: chamfer aplicado somente no aro interno e corte negativo com folga Z anti-coplanar.",
-    "v0.9.1": "Corte negativo alinhado com a posicao final da tampa; profundidade adicional aplicada apenas para baixo.",
-    "v0.9.0": "Aplica corte negativo da tampa na caixa com profundidade de sulco controlada.",
-    "v0.8.2": "Corrige posicionamento Y da tampa para o path explicito: de parede interna traseira ate parede externa frontal.",
-    "v0.8.1": "Inverte orientacao da tampa no eixo Y (frente/tras) sem alterar o alcance do path.",
-    "v0.8.0": "Altura da tampa igual a espessura da parede; path em Y da parede externa frontal ate parede interna traseira.",
-    "v0.7.1": "Centraliza automaticamente a tampa no eixo X/Y pelo bounding box antes do corte.",
-    "v0.7.0": "Face superior da tampa hex igual a largura interna da caixa e tampa mantida centralizada tampando a caixa.",
-    "v0.6.0": "Corrige profundidade da tampa hex (extrude one-side + recenter Y) e mantém corte com tampa montada.",
-    "v0.5.0": "Corte da caixa usando a própria tampa hex e separação da tampa no preview.",
-    "v0.4.0": "Tampa hex com largura caixa-2mm e ombro de 1mm.",
-}
-
-
-@dataclass(frozen=True)
-class DeckSpec:
-    card_count: int = 100
-    card_size_mm: tuple[float, float] = (63.0, 88.0)
-    outer_sleeve_size_mm: tuple[float, float] = (66.0, 91.0)
-    estimated_double_sleeved_card_thickness_mm: float = 0.76
-    side_clearance_mm: float = 1.5
-    stack_clearance_mm: float = 2.0
-    top_clearance_mm: float = 4.0
-
-
-@dataclass(frozen=True)
-class BoxSpec:
-    wall_thickness_mm: float = 4.0
-    bottom_thickness_mm: float = 0.56
-    compensate_lid_intrusion: bool = True
-    link_entry_height_to_lid: bool = True
-    corner_radius_mm: float = 2.0
-    entry_height_mm: float = 2.0
-    entry_depth_mm: float = 10.0
-    top_chamfer_mm: float = 0.8
-
-
-@dataclass(frozen=True)
-class LidSpec:
-    clearance_mm: float = 0.2
-    thickness_mm: float = 3.0
-    overhang_front_mm: float = 1.5
-    explode_offset_mm: float = 100.0
-    groove_cut_depth_mm: float = 1.2
-    groove_fit_relief_mm: float = 0.1
-    hex_tip_offset_mm: float = 1.4
-    mirror_front_entry_shape: bool = True
-    detents_enabled: bool = True
-    detent_diameter_mm: float = 0.6
-    detent_protrusion_mm: float = 0.5
-    detent_front_margin_mm: float = 5.0
-    detent_top_margin_mm: float = 1.0
-    detent_cut_ratio: float = 0.8
-    detent_face_modes: tuple[str, ...] = ("z_inner",)
-
-
-@dataclass(frozen=True)
-class BuildOptions:
-    enable_preview: bool = True
-    debug_show_face_overlays: bool = True
-    export_stl: bool = True
-    path_body: Path = Path(f"commander_deck_box_body_{MODEL_VERSION}.stl")
-    path_lid: Path = Path(f"commander_deck_box_lid_hex_{MODEL_VERSION}.stl")
-    path_assembly: Path = Path(f"commander_deck_box_hex_{MODEL_VERSION}.stl")
-
-
-@dataclass(frozen=True)
-class SideDepressionSpec:
-    enabled: bool = True
-    faces: tuple[str, ...] = (">X", "<X", ">Y", "<Y")
-    depth_mm: float = 3.0
-    edge_chamfer_mm: float = 4.25
-    edge_margin_mm: float = 5.0
-    top_extra_margin_mm: float = 3.0
-    offset_u_mm: float = 0.0
-    offset_v_mm: float = 0.0
+MODEL_VERSION = "v3.0.6"
 
 
 def calculate_internal(deck: DeckSpec) -> tuple[float, float, float]:
@@ -138,9 +18,9 @@ def calculate_internal(deck: DeckSpec) -> tuple[float, float, float]:
     return inner_w, inner_d, inner_h
 
 
-def build_body(deck: DeckSpec, box: BoxSpec) -> tuple[cq.Workplane, dict]:
+def build_body(deck: DeckSpec, box: BoxSpec, lid_spec: LidSpec) -> tuple[cq.Workplane, dict]:
     inner_w, inner_d, inner_h_nominal = calculate_internal(deck)
-    lid_comp_h = box.wall_thickness_mm if box.compensate_lid_intrusion else 0.0
+    lid_comp_h = lid_spec.thickness_mm if box.compensate_lid_intrusion else 0.0
     inner_h = inner_h_nominal + lid_comp_h
     outer_w = inner_w + 2 * box.wall_thickness_mm
     outer_d = inner_d + 2 * box.wall_thickness_mm
@@ -198,41 +78,80 @@ def round_outer_edges(body: cq.Workplane, dims: dict, box: BoxSpec) -> cq.Workpl
         ),
     ]
 
+    def _compact(body_in: cq.Workplane) -> cq.Workplane:
+        # Evita crescimento de parent-chain no CQ, que encarece findSolid() nas proximas operacoes.
+        return cq.Workplane("XY").newObject([body_in.val()])
+
     def _safe_fillet(body_in: cq.Workplane, sel: cq.selectors.BoxSelector, radius: float) -> cq.Workplane:
+        body_base = _compact(body_in)
         for factor in (1.0, 0.85, 0.7, 0.55, 0.4):
             r_try = radius * factor
             if r_try < 0.05:
                 continue
             try:
-                e = body_in.edges(sel)
+                e = body_base.edges(sel)
                 if not e.size():
-                    return body_in
-                return e.fillet(r_try)
+                    return body_base
+                return _compact(e.fillet(r_try))
             except Exception:
                 continue
-        return body_in
+        return body_base
 
     for sel in selectors:
         body = _safe_fillet(body, sel, r)
     return body
 
 
-def build_entry_cutter(dims: dict, box: BoxSpec) -> tuple[cq.Workplane, float]:
+def build_entry_cutter(dims: dict, box: BoxSpec, lid_spec: LidSpec) -> tuple[cq.Workplane, float]:
     outer_w, outer_d, outer_h = dims["outer"]
-    entry_h = box.wall_thickness_mm if box.link_entry_height_to_lid else box.entry_height_mm
+    entry_h = lid_spec.thickness_mm if box.link_entry_height_to_lid else box.entry_height_mm
+    relief_z = max(0.0, lid_spec.fit_relief_mm)
     entry_cut = (
         cq.Workplane("XY")
         .transformed(offset=(0, outer_d / 2 - box.entry_depth_mm / 2, outer_h - entry_h / 2))
-        .box(outer_w + 0.5, box.entry_depth_mm, entry_h + 0.2, centered=True)
+        .box(outer_w + 0.5, box.entry_depth_mm, entry_h + 2.0 * relief_z, centered=True)
     )
     return entry_cut, entry_h
 
 
-def add_entry_cut(body: cq.Workplane, dims: dict, box: BoxSpec) -> tuple[cq.Workplane, cq.Workplane, cq.Workplane]:
-    entry_cut, _ = build_entry_cutter(dims, box)
+def add_entry_cut(body: cq.Workplane, dims: dict, box: BoxSpec, lid_spec: LidSpec) -> tuple[cq.Workplane, cq.Workplane, cq.Workplane]:
+    entry_cut, _ = build_entry_cutter(dims, box, lid_spec)
     removed_shape = body.intersect(entry_cut)
     body_cut = body.cut(entry_cut)
     return body_cut, removed_shape, entry_cut
+
+
+def fuseShapes(base_shape: cq.Workplane, insert_shape: cq.Workplane) -> cq.Workplane:
+    try:
+        overlap = base_shape.intersect(insert_shape)
+        if overlap.solids().size():
+            base_shape = base_shape.cut(overlap)
+    except Exception:
+        pass
+    return base_shape.union(insert_shape).clean()
+
+
+def cropShapeZFromMin(shape: cq.Workplane, crop_z_mm: float) -> cq.Workplane:
+    crop = max(0.0, crop_z_mm)
+    if crop <= 0.0:
+        return shape
+
+    bb = shape.val().BoundingBox()
+    if bb.zlen <= 0.06:
+        return shape
+
+    crop_eff = min(crop, bb.zlen - 0.05)
+    if crop_eff <= 0.0:
+        return shape
+
+    pad = 0.6
+    eps = 0.02
+    cutter = (
+        cq.Workplane("XY")
+        .box(bb.xlen + 2.0 * pad, bb.ylen + 2.0 * pad, crop_eff + 2.0 * eps, centered=True)
+        .translate(((bb.xmin + bb.xmax) * 0.5, (bb.ymin + bb.ymax) * 0.5, bb.zmin + crop_eff * 0.5 - eps))
+    )
+    return shape.cut(cutter).clean()
 
 
 def apply_entry_shape_to_lid(
@@ -240,17 +159,9 @@ def apply_entry_shape_to_lid(
 ) -> cq.Workplane:
     if not lid_spec.mirror_front_entry_shape:
         return lid
-    # Anti-coplanar: cria um pequeno "corpo de fusao" para evitar faces coincidentes
-    # que podem virar non-manifold na triangulacao STL.
-    eps = 0.03
-    insert_fuse = removed_shape.union(removed_shape.translate((0, -eps, 0)))
-    try:
-        overlap = lid.intersect(insert_fuse)
-        if overlap.solids().size():
-            lid = lid.cut(overlap)
-    except Exception:
-        pass
-    return lid.union(insert_fuse).clean()
+    # Insert frontal aplicado sem deslocamento para manter alinhamento 1:1 com a entrada.
+    insert_shape = cropShapeZFromMin(removed_shape, lid_spec.front_entry_insert_crop_z_mm)
+    return fuseShapes(lid, insert_shape)
 
 
 def chamfer_top_inner_edges(body: cq.Workplane, box: BoxSpec) -> cq.Workplane:
@@ -402,8 +313,7 @@ def build_hex_lid(deck: DeckSpec, box: BoxSpec, lid_spec: LidSpec, dims: dict) -
     lid_w_total = top_width + 2.0 * tip_offset
     # path: parede externa frontal (+outer_d/2) ate parede interna traseira (-inner_d/2)
     lid_d = inner_d + box.wall_thickness_mm
-    # altura da tampa igual a espessura da parede
-    lid_h = box.wall_thickness_mm
+    lid_h = max(0.2, lid_spec.thickness_mm)
 
     w = lid_w_total
     h = lid_h
@@ -466,7 +376,8 @@ def add_lid_detents(lid: cq.Workplane, lid_spec: LidSpec, lid_dims: dict) -> tup
 
     bb = lid.val().BoundingBox()
     r = max(0.2, lid_spec.detent_diameter_mm * 0.5)
-    protrusion_full = max(0.1, min(lid_spec.detent_protrusion_mm, r * 0.98))
+    exposed_ratio = min(0.98, max(0.05, lid_spec.detent_exposed_ratio_of_diameter))
+    protrusion_full = exposed_ratio * (2.0 * r)
     cut_ratio = min(1.0, max(0.1, lid_spec.detent_cut_ratio))
     protrusion_cut = protrusion_full * cut_ratio
 
@@ -548,19 +459,24 @@ def add_lid_detents(lid: cq.Workplane, lid_spec: LidSpec, lid_dims: dict) -> tup
 
 def cut_body_with_lid(body: cq.Workplane, lid: cq.Workplane, lid_spec: LidSpec) -> cq.Workplane:
     # Sulco negativo alinhado com a tampa exibida.
-    # Para FDM, amplia o cutter com pequenos deslocamentos em XY para criar respiro de encaixe.
-    eps = 0.05  # evita boolean coplanar
-    cutter = lid.translate((0, 0, -eps))
-    r = lid_spec.groove_fit_relief_mm
+    # Para FDM, amplia o cutter com pequenos deslocamentos em XZ para criar respiro
+    # transversal ao deslizamento (que ocorre no eixo Y).
+    cutter = lid
+    r = max(0.0, lid_spec.fit_relief_mm)
     if r > 0:
         cutter = (
             cutter
-            .union(lid.translate((r, 0, -eps)))
-            .union(lid.translate((-r, 0, -eps)))
-            .union(lid.translate((0, r, -eps)))
-            .union(lid.translate((0, -r, -eps)))
+            .union(lid.translate((r, 0, 0)))
+            .union(lid.translate((-r, 0, 0)))
+            .union(lid.translate((0, 0, r)))
+            .union(lid.translate((0, 0, -r)))
         )
-    return body.cut(cutter)
+    try:
+        # Prioriza corte sem deslocamento em Z para manter faces niveladas.
+        return body.cut(cutter)
+    except Exception:
+        # Fallback anti-coplanar se o boolean falhar no kernel.
+        return body.cut(cutter.translate((0, 0, -0.03)))
 
 
 def show_colored_lid(body: cq.Workplane, lid: cq.Workplane):
@@ -672,12 +588,12 @@ def main() -> None:
     box = BoxSpec()
     lid_spec = LidSpec()
     dep = SideDepressionSpec()
-    opts = BuildOptions()
+    opts = default_build_options(MODEL_VERSION)
 
-    body, dims = build_body(deck, box)
+    body, dims = build_body(deck, box, lid_spec)
     body, dep_depth_effective = add_side_depressions(body, dims, dep)
     body = chamfer_side_depression_openings(body, dims, dep, dep_depth_effective)
-    body, entry_removed_shape, entry_cutter = add_entry_cut(body, dims, box)
+    body, entry_removed_shape, entry_cutter = add_entry_cut(body, dims, box, lid_spec)
     body = chamfer_top_inner_edges(body, box)
 
     lid, lid_dims = build_hex_lid(deck, box, lid_spec, dims)
@@ -690,7 +606,6 @@ def main() -> None:
 
     print("=== Commander Deck Box ===")
     print(f"Versao: {MODEL_VERSION}")
-    print(f"Mudanca: {MODEL_CHANGELOG[MODEL_VERSION]}")
     print(
         f"Interno util (L x P x A): "
         f"{dims['inner'][0]:.1f} x {dims['inner'][1]:.1f} x {dims['inner'][2]:.1f} mm"

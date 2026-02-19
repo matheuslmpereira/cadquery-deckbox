@@ -1,0 +1,61 @@
+# Model Changelog
+
+- `v3.0.6`: Refina encaixe e manutencao: centraliza relief em `fit_relief_mm`, corrige alivio do sulco para eixos X/Z, adiciona crop do insert frontal no eixo Z, isola fusao em `fuseShapes` e alinha fluxo final para assembly sem recorte extra do corpo.
+- `v3.0.5`: Ajustes de organização de projeto e minor fixis para a tampa
+- `v3.0.4`: Aumenta lado do hexagono da tampa (hex_tip_offset_mm) para ampliar o corte de encaixe na caixa.
+- `v3.0.3`: Remove groove_cut_depth_mm e sua logica; profundidade do sulco passa a depender apenas da geometria da tampa.
+- `v3.0.2`: Remove duplicidade no corte do sulco; groove_cut_depth_mm agora estende a base do cutter de forma continua.
+- `v3.0.1`: Aumenta um pouco a profundidade do sulco da tampa e passa a aplicar groove_cut_depth_mm no corte.
+- `v3.0.0`: Versao estavel e imprimivel validada em PETG.
+- `v2.0.25`: Reduz tamanho dos detentes em 20%.
+- `v2.0.24`: Move detentes da tampa para a face inferior usando modo z_inner.
+- `v2.0.23`: Corrige z_outer/z_inner para aplicar detentes em faces Z reais da tampa (nao mais alias de Y).
+- `v2.0.22`: Padroniza nomenclatura de detentes para face Z (z_outer/z_inner), mantendo compatibilidade com y_outer/y_inner.
+- `v2.0.21`: Reposiciona detentes para face externa no eixo horizontal (modo y_outer).
+- `v2.0.20`: Restringe detentes ao modo x_inner para evitar aplicacao nas faces externas verticais da tampa.
+- `v2.0.19`: Corrige orientacao dos detentes por normal de face (inner/outer) para aplicacao no lado correto.
+- `v2.0.18`: Adiciona seletor de face dos detentes para teste rapido de posicionamento (x/y interno/externo).
+- `v2.0.17`: Desfaz ordem do boolean no corpo inicial da tampa e retoma fluxo anterior com aplicacao de detentes.
+- `v2.0.16`: Aplica boolean do insert frontal no corpo inicial da tampa (antes de arredondamentos e detentes).
+- `v2.0.15`: Adiciona deslocamento de preview da tampa (explode) para melhor visualizacao no OCP CAD viewer.
+- `v2.0.14`: Posiciona detentes na face interna da tampa (voltada para dentro da caixa).
+- `v2.0.13`: Reposiciona detentes para a face externa da tampa e adiciona seletor explicito de face.
+- `v2.0.12`: Adiciona 2 detentes na tampa para controle de fechamento, com corte correspondente em 80% no corpo.
+- `v2.0.11`: Aumenta chanfro da depressao para referencia diagonal (hipotenusa) e reduz remanescente de angulo reto.
+- `v2.0.10`: Define chanfro da depressao igual a profundidade (3.0 mm) para eliminar ombro de 90 graus.
+- `v2.0.9`: Aumenta novamente o chanfro da depressao lateral para eliminar remanescente de angulo reto.
+- `v2.0.8`: Aumenta o chanfro da depressao lateral para remover angulos retos na face da parede.
+- `v2.0.7`: Aumenta hex_tip_offset_mm para ajustar a inclinacao do hexagono do trilho no sentido correto.
+- `v2.0.6`: Reverte taper do sulco e aumenta o angulo do hexagono do trilho da tampa pelo perfil.
+- `v2.0.5`: Aumenta a angulacao do sulco da tampa com taper: entrada mais folgada e fundo mais justo para maior pressao vertical.
+- `v2.0.4`: Ajusta profundidade da depressao para manter 1 mm de parede principal com espessura externa de 4 mm.
+- `v2.0.3`: Reforca paredes para carga na tampa, aprofunda depressao mantendo alma de 1 mm e amplia bordas do painel.
+- `v2.0.2`: Corrige STL da tampa para slicer com boolean anti-coplanar no insert frontal.
+- `v2.0.1`: Reduz espessura da base interna para 0.56 mm (2 camadas de 0.28 mm) visando impressao sem suporte.
+- `v2.0.0`: Baseline estavel: paredes minimas viaveis, acabamento refinado e encaixe funcional.
+- `v1.0.12`: Aplica arredondamento apenas na face frontal da tampa, usando o mesmo raio externo da caixa.
+- `v1.0.11`: Corrige tampa vazada: rebaixo da tampa passa a usar apenas a intersecao com o insert frontal.
+- `v1.0.10`: Nova abordagem para shape frontal da tampa: corta com o mesmo cutter da caixa e depois aplica o insert.
+- `v1.0.9`: Evita sobreposicao ao inserir o shape frontal na tampa: abre rebaixo na intersecao antes da mescla.
+- `v1.0.8`: Mescla na tampa o volume removido da entrada frontal da caixa (complemento real do shape).
+- `v1.0.7`: Aplica o mesmo shape da entrada frontal da caixa na tampa para continuidade visual.
+- `v1.0.6`: Reduz folga de encaixe da tampa para ajuste mais justo com atrito (FDM).
+- `v1.0.5`: Arredonda arestas externas da caixa (verticais e base) para reduzir impacto de quina.
+- `v1.0.4`: Vincula a altura do corte frontal a altura da tampa para manter proporcao apos redimensionar paredes.
+- `v1.0.3`: Compensa a intrusao da tampa aumentando a altura interna util da caixa em 1x a altura da tampa.
+- `v1.0.2`: Adiciona depressao de 1.0 mm nas quatro faces laterais externas da caixa.
+- `v1.0.1`: Interno sem arredondamento e trilho com respiro extra para encaixe FDM mais folgado.
+- `v1.0.0`: Baseline estavel e funcional aprovado para caixa + tampa hex com corte negativo alinhado.
+- `v0.9.4`: Simplifica para cutter unico alinhado (remove corte duplo e evita falha booleana).
+- `v0.9.3`: Remove degrau duplo no sulco: cutter unico com extensao continua para baixo.
+- `v0.9.2`: Corrige artefatos no canto: chamfer aplicado somente no aro interno e corte negativo com folga Z anti-coplanar.
+- `v0.9.1`: Corte negativo alinhado com a posicao final da tampa; profundidade adicional aplicada apenas para baixo.
+- `v0.9.0`: Aplica corte negativo da tampa na caixa com profundidade de sulco controlada.
+- `v0.8.2`: Corrige posicionamento Y da tampa para o path explicito: de parede interna traseira ate parede externa frontal.
+- `v0.8.1`: Inverte orientacao da tampa no eixo Y (frente/tras) sem alterar o alcance do path.
+- `v0.8.0`: Altura da tampa igual a espessura da parede; path em Y da parede externa frontal ate parede interna traseira.
+- `v0.7.1`: Centraliza automaticamente a tampa no eixo X/Y pelo bounding box antes do corte.
+- `v0.7.0`: Face superior da tampa hex igual a largura interna da caixa e tampa mantida centralizada tampando a caixa.
+- `v0.6.0`: Corrige profundidade da tampa hex (extrude one-side + recenter Y) e mantem corte com tampa montada.
+- `v0.5.0`: Corte da caixa usando a propria tampa hex e separacao da tampa no preview.
+- `v0.4.0`: Tampa hex com largura caixa-2mm e ombro de 1mm.
