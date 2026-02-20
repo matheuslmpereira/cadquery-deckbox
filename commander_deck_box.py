@@ -8,7 +8,7 @@ try:
 except ImportError:
     show = None
 
-MODEL_VERSION = "v3.0.7"
+MODEL_VERSION = "v3.0.8"
 
 
 def calculate_internal(deck: DeckSpec) -> tuple[float, float, float]:
@@ -376,84 +376,47 @@ def add_lid_detents(lid: cq.Workplane, lid_spec: LidSpec, lid_dims: dict) -> tup
 
     bb = lid.val().BoundingBox()
     r = max(0.2, lid_spec.detent_diameter_mm * 0.5)
-    exposed_ratio = min(0.98, max(0.05, lid_spec.detent_exposed_ratio_of_diameter))
-    protrusion_full = exposed_ratio * (2.0 * r)
+    rect_depth = max(0.5, lid_spec.detent_rect_depth_mm)
+    protrusion_full = max(0.05, lid_spec.detent_rect_height_mm)
     cut_ratio = min(1.0, max(0.1, lid_spec.detent_cut_ratio))
     protrusion_cut = protrusion_full * cut_ratio
 
     y = bb.ymax - max(0.5, lid_spec.detent_front_margin_mm)
     y = max(bb.ymin + 1.0, min(bb.ymax - 1.0, y))
-    z = bb.zmax - max(0.3, lid_spec.detent_top_margin_mm)
-    z = max(bb.zmin + 0.3, min(bb.zmax - 0.3, z))
-    pad = 1.0
     w_top = lid_dims["w_top"]
+    side_inset = max(r + 0.4, 1.0)
+    x_left = -w_top * 0.5 + side_inset
+    x_right = w_top * 0.5 - side_inset
+    x_span = max(0.2, x_right - x_left)
+    x_center = (x_left + x_right) * 0.5
 
-    mode_specs = []
+    z_modes = []
     for raw in lid_spec.detent_face_modes:
         mode = raw.strip().lower()
-        if mode == "x_outer":
-            mode_specs.append(("x", ((1.0, bb.xmax), (-1.0, bb.xmin)), 1.0))
-        elif mode == "x_inner":
-            mode_specs.append(("x", ((1.0, w_top * 0.5), (-1.0, -w_top * 0.5)), -1.0))
-        elif mode == "y_outer":
-            mode_specs.append(("y", ((1.0, bb.ymax), (-1.0, bb.ymin)), 1.0))
-        elif mode == "y_inner":
-            mode_specs.append(("y", ((1.0, bb.ymax - 1.0), (-1.0, bb.ymin + 1.0)), -1.0))
-        elif mode == "z_outer":
-            mode_specs.append(("z", bb.zmax, 1.0))
+        if mode == "z_outer":
+            z_modes.append((bb.zmax, 1.0))
         elif mode == "z_inner":
-            mode_specs.append(("z", bb.zmin, -1.0))
+            z_modes.append((bb.zmin, -1.0))
 
-    def build_caps(protrusion: float) -> cq.Workplane:
-        caps = None
-        for spec in mode_specs:
-            axis = spec[0]
-            if axis in ("x", "y"):
-                _, face_pairs, normal_mult = spec
-                for sign, face_pos in face_pairs:
-                    n_dir = normal_mult * sign
-                    if axis == "x":
-                        cx = face_pos + n_dir * (r - protrusion)
-                        cy = y
-                        cz = z
-                        tx = face_pos + n_dir * (r + pad) * 0.5
-                        ty = (bb.ymin + bb.ymax) * 0.5
-                        tz = (bb.zmin + bb.zmax) * 0.5
-                        clip = cq.Workplane("XY").box(2.0 * (r + pad), bb.ylen + 2.0 * pad, bb.zlen + 2.0 * pad, centered=True).translate((tx, ty, tz))
-                    else:
-                        cx = 0.0
-                        cy = face_pos + n_dir * (r - protrusion)
-                        cz = z
-                        tx = (bb.xmin + bb.xmax) * 0.5
-                        ty = face_pos + n_dir * (r + pad) * 0.5
-                        tz = (bb.zmin + bb.zmax) * 0.5
-                        clip = cq.Workplane("XY").box(bb.xlen + 2.0 * pad, 2.0 * (r + pad), bb.zlen + 2.0 * pad, centered=True).translate((tx, ty, tz))
-                    sphere = cq.Workplane("XY").sphere(r).translate((cx, cy, cz))
-                    cap = sphere.intersect(clip)
-                    caps = cap if caps is None else caps.union(cap)
-            else:
-                _, face_pos, normal_mult = spec
-                z_dir = normal_mult
-                side_inset = max(r + 0.4, 1.0)
-                x_left = -w_top * 0.5 + side_inset
-                x_right = w_top * 0.5 - side_inset
-                for cx in (x_left, x_right):
-                    cy = y
-                    cz = face_pos + z_dir * (r - protrusion)
-                    tx = (bb.xmin + bb.xmax) * 0.5
-                    ty = (bb.ymin + bb.ymax) * 0.5
-                    tz = face_pos + z_dir * (r + pad) * 0.5
-                    clip = cq.Workplane("XY").box(bb.xlen + 2.0 * pad, bb.ylen + 2.0 * pad, 2.0 * (r + pad), centered=True).translate((tx, ty, tz))
-                    sphere = cq.Workplane("XY").sphere(r).translate((cx, cy, cz))
-                    cap = sphere.intersect(clip)
-                    caps = cap if caps is None else caps.union(cap)
-        return caps
+    def build_rect_latches(protrusion: float) -> cq.Workplane | None:
+        latches = None
+        for face_pos, normal_mult in z_modes:
+            cz = face_pos + normal_mult * protrusion * 0.5
+            latch = (
+                cq.Workplane("XY")
+                .box(x_span, rect_depth, protrusion, centered=True)
+                .translate((x_center, y, cz))
+            )
+            latches = latch if latches is None else latches.union(latch)
+        return latches
 
-    caps_full = build_caps(protrusion_full)
-    caps_cut = build_caps(protrusion_cut)
+    latches_full = build_rect_latches(protrusion_full)
+    latches_cut = build_rect_latches(protrusion_cut)
+    if latches_full is None or latches_cut is None:
+        return lid, lid
 
-    lid_full = lid.union(caps_full).clean()
-    lid_cutter = lid.union(caps_cut).clean()
+    lid_full = lid.union(latches_full).clean()
+    lid_cutter = lid.union(latches_cut).clean()
     return lid_full, lid_cutter
 
 

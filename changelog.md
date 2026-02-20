@@ -1,5 +1,6 @@
 # Model Changelog
 
+- `v3.0.8`: Substitui bolinhas de fechamento por trava retangular na tampa (profundidade 3.0 mm, altura 0.2 mm), mantendo as extremidades alinhadas com as posicoes laterais anteriores das bolinhas.
 - `v3.0.7`: Aumenta a espessura do fundo da caixa para 0.84 mm (0.28 x 3 camadas).
 - `v3.0.6`: Refina encaixe e manutencao: centraliza relief em `fit_relief_mm`, corrige alivio do sulco para eixos X/Z, adiciona crop do insert frontal no eixo Z, isola fusao em `fuseShapes` e alinha fluxo final para assembly sem recorte extra do corpo.
 - `v3.0.5`: Ajustes de organização de projeto e minor fixis para a tampa

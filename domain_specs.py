@@ -36,6 +36,8 @@ class LidSpec:
     mirror_front_entry_shape: bool = True
     front_entry_insert_crop_z_mm: float = 0.1
     detents_enabled: bool = True
+    detent_rect_depth_mm: float = 3.0
+    detent_rect_height_mm: float = 0.2
     detent_diameter_mm: float = 0.8
     detent_exposed_ratio_of_diameter: float = 0.55
     detent_protrusion_mm: float = 0.5
