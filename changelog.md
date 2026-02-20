@@ -1,5 +1,6 @@
 # Model Changelog
 
+- `v3.0.7`: Aumenta a espessura do fundo da caixa para 0.84 mm (0.28 x 3 camadas).
 - `v3.0.6`: Refina encaixe e manutencao: centraliza relief em `fit_relief_mm`, corrige alivio do sulco para eixos X/Z, adiciona crop do insert frontal no eixo Z, isola fusao em `fuseShapes` e alinha fluxo final para assembly sem recorte extra do corpo.
 - `v3.0.5`: Ajustes de organização de projeto e minor fixis para a tampa
 - `v3.0.4`: Aumenta lado do hexagono da tampa (hex_tip_offset_mm) para ampliar o corte de encaixe na caixa.

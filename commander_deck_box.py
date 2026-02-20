@@ -8,7 +8,7 @@ try:
 except ImportError:
     show = None
 
-MODEL_VERSION = "v3.0.6"
+MODEL_VERSION = "v3.0.7"
 
 
 def calculate_internal(deck: DeckSpec) -> tuple[float, float, float]:

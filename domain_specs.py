@@ -16,7 +16,7 @@ class DeckSpec:
 @dataclass(frozen=True)
 class BoxSpec:
     wall_thickness_mm: float = 4.0
-    bottom_thickness_mm: float = 0.56
+    bottom_thickness_mm: float = 0.84
     compensate_lid_intrusion: bool = True
     link_entry_height_to_lid: bool = True
     corner_radius_mm: float = 2.0
