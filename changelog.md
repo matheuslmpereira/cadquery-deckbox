@@ -1,5 +1,13 @@
 # Model Changelog
 
+- `v3.1.5`: Ajusta perfis UNO (`uno_36` e `color_addicted_40`) para fit de largura/altura com folga total de 2 mm.
+- `v3.1.4`: Adiciona novos perfis de caixa com formato de carta UNO: `uno_36` (36 mm de profundidade interna) e `color_addicted_40` (40 mm de profundidade interna).
+- `v3.1.3`: Adiciona no `build_box.py` export opcional de arquivo STEP da montagem para visualizacao em CAD viewer.
+- `v3.1.2`: Adiciona segundo nivel na trava retangular de fechamento, com margem de 0.5 mm em relacao ao primeiro retangulo.
+- `v3.1.1`: Adiciona seletor interativo de modelo no `build_box.py` quando `--model` nao e informado (escolha por numero ou slug no terminal).
+- `v3.1.0`: Refatora execucao para `build_box.py` com selecao de perfil de caixa (`commander_100` e `constructed_60_15`), separa `main` da modelagem, e passa a incluir o slug do modelo no nome dos STLs exportados.
+- `v3.0.10`: Desloca a trava retangular de fechamento em -1.0 mm no eixo Y.
+- `v3.0.9`: Aumenta a altura da trava retangular de fechamento da tampa para 0.3 mm.
 - `v3.0.8`: Substitui bolinhas de fechamento por trava retangular na tampa (profundidade 3.0 mm, altura 0.2 mm), mantendo as extremidades alinhadas com as posicoes laterais anteriores das bolinhas.
 - `v3.0.7`: Aumenta a espessura do fundo da caixa para 0.84 mm (0.28 x 3 camadas).
 - `v3.0.6`: Refina encaixe e manutencao: centraliza relief em `fit_relief_mm`, corrige alivio do sulco para eixos X/Z, adiciona crop do insert frontal no eixo Z, isola fusao em `fuseShapes` e alinha fluxo final para assembly sem recorte extra do corpo.

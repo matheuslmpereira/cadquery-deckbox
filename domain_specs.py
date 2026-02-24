@@ -37,11 +37,12 @@ class LidSpec:
     front_entry_insert_crop_z_mm: float = 0.1
     detents_enabled: bool = True
     detent_rect_depth_mm: float = 3.0
-    detent_rect_height_mm: float = 0.2
+    detent_rect_height_mm: float = 0.3
+    detent_rect_second_level_margin_mm: float = 0.5
     detent_diameter_mm: float = 0.8
     detent_exposed_ratio_of_diameter: float = 0.55
     detent_protrusion_mm: float = 0.5
-    detent_front_margin_mm: float = 5.0
+    detent_front_margin_mm: float = 5.5
     detent_top_margin_mm: float = 1.0
     detent_cut_ratio: float = 0.8
     detent_face_modes: tuple[str, ...] = ("z_inner",)
@@ -69,9 +70,9 @@ class BuildOptions:
     path_assembly: Path = Path("commander_deck_box_hex.stl")
 
 
-def default_build_options(model_version: str) -> BuildOptions:
+def default_build_options(model_version: str, model_slug: str) -> BuildOptions:
     return BuildOptions(
-        path_body=Path(f"commander_deck_box_body_{model_version}.stl"),
-        path_lid=Path(f"commander_deck_box_lid_hex_{model_version}.stl"),
-        path_assembly=Path(f"commander_deck_box_hex_{model_version}.stl"),
+        path_body=Path(f"commander_deck_box_{model_slug}_body_{model_version}.stl"),
+        path_lid=Path(f"commander_deck_box_{model_slug}_lid_hex_{model_version}.stl"),
+        path_assembly=Path(f"commander_deck_box_{model_slug}_hex_{model_version}.stl"),
     )

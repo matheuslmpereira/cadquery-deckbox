@@ -21,8 +21,16 @@ pip install -r requirements.txt
 
 ```bash
 source .venv/bin/activate
-python commander_deck_box.py
+python build_box.py
+python build_box.py --model commander_100
+python build_box.py --model constructed_60_15
+python build_box.py --model uno_36
+python build_box.py --model color_addicted_40
+python build_box.py --model commander_100 --no-viewer-output
 ```
+
+- Sem `--model`, o script abre um seletor interativo no terminal.
+- Por padrao, o script exporta um arquivo `.step` da montagem para CAD viewer.
 
 ## Verify environment
 
@@ -39,7 +47,7 @@ Expected:
 
 ## Notes
 
-- Running with `/opt/homebrew/bin/python3 commander_deck_box.py` without activating `.venv` will fail with `ModuleNotFoundError: cadquery`.
-- STL files are exported with the model version in the filename.
+- Running with `/opt/homebrew/bin/python3 build_box.py` without activating `.venv` will fail with `ModuleNotFoundError: cadquery`.
+- STL files are exported with model slug + version in the filename.
 - In VSCode, select interpreter:
   - `Python: Select Interpreter` -> `/Users/matheuslmpereira/Workspace/cadquery-deckbox/.venv/bin/python`

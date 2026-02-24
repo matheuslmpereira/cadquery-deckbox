@@ -1,14 +1,14 @@
 import cadquery as cq
 import math
 
-from domain_specs import BoxSpec, DeckSpec, LidSpec, SideDepressionSpec, default_build_options
+from domain_specs import BoxSpec, DeckSpec, LidSpec, SideDepressionSpec
 
 try:
     from ocp_vscode import show
 except ImportError:
     show = None
 
-MODEL_VERSION = "v3.0.8"
+MODEL_VERSION = "v3.1.5"
 
 
 def calculate_internal(deck: DeckSpec) -> tuple[float, float, float]:
@@ -378,6 +378,7 @@ def add_lid_detents(lid: cq.Workplane, lid_spec: LidSpec, lid_dims: dict) -> tup
     r = max(0.2, lid_spec.detent_diameter_mm * 0.5)
     rect_depth = max(0.5, lid_spec.detent_rect_depth_mm)
     protrusion_full = max(0.05, lid_spec.detent_rect_height_mm)
+    second_level_margin = max(0.0, lid_spec.detent_rect_second_level_margin_mm)
     cut_ratio = min(1.0, max(0.1, lid_spec.detent_cut_ratio))
     protrusion_cut = protrusion_full * cut_ratio
 
@@ -389,6 +390,8 @@ def add_lid_detents(lid: cq.Workplane, lid_spec: LidSpec, lid_dims: dict) -> tup
     x_right = w_top * 0.5 - side_inset
     x_span = max(0.2, x_right - x_left)
     x_center = (x_left + x_right) * 0.5
+    x_span_level2 = x_span - 2.0 * second_level_margin
+    depth_level2 = rect_depth - 2.0 * second_level_margin
 
     z_modes = []
     for raw in lid_spec.detent_face_modes:
@@ -401,12 +404,21 @@ def add_lid_detents(lid: cq.Workplane, lid_spec: LidSpec, lid_dims: dict) -> tup
     def build_rect_latches(protrusion: float) -> cq.Workplane | None:
         latches = None
         for face_pos, normal_mult in z_modes:
-            cz = face_pos + normal_mult * protrusion * 0.5
-            latch = (
+            cz_level1 = face_pos + normal_mult * protrusion * 0.5
+            latch_level1 = (
                 cq.Workplane("XY")
                 .box(x_span, rect_depth, protrusion, centered=True)
-                .translate((x_center, y, cz))
+                .translate((x_center, y, cz_level1))
             )
+            latch = latch_level1
+            if x_span_level2 > 0.2 and depth_level2 > 0.2:
+                cz_level2 = face_pos + normal_mult * (protrusion * 1.5)
+                latch_level2 = (
+                    cq.Workplane("XY")
+                    .box(x_span_level2, depth_level2, protrusion, centered=True)
+                    .translate((x_center, y, cz_level2))
+                )
+                latch = latch.union(latch_level2)
             latches = latch if latches is None else latches.union(latch)
         return latches
 
@@ -546,13 +558,9 @@ def show_preview(body: cq.Workplane, lid: cq.Workplane, face_debug: bool, lid_pr
     show(body, lid_disp, names=["body", "lid"], colors=["lightgray", "gold"], axes=True, grid=True)
 
 
-def main() -> None:
-    deck = DeckSpec()
-    box = BoxSpec()
-    lid_spec = LidSpec()
-    dep = SideDepressionSpec()
-    opts = default_build_options(MODEL_VERSION)
-
+def build_box_geometry(
+    deck: DeckSpec, box: BoxSpec, lid_spec: LidSpec, dep: SideDepressionSpec
+) -> tuple[cq.Workplane, cq.Workplane, cq.Workplane, dict, float]:
     body, dims = build_body(deck, box, lid_spec)
     body, dep_depth_effective = add_side_depressions(body, dims, dep)
     body = chamfer_side_depression_openings(body, dims, dep, dep_depth_effective)
@@ -566,9 +574,14 @@ def main() -> None:
     lid, lid_cutter = add_lid_detents(lid, lid_spec, lid_dims)
     body = cut_body_with_lid(body, lid_cutter, lid_spec)
     assembly = body.union(lid)
+    return body, lid, assembly, dims, dep_depth_effective
 
-    print("=== Commander Deck Box ===")
-    print(f"Versao: {MODEL_VERSION}")
+
+def print_build_summary(
+    model_label: str, model_version: str, dims: dict, box: BoxSpec, dep: SideDepressionSpec, dep_depth_effective: float
+) -> None:
+    print(f"=== {model_label} ===")
+    print(f"Versao: {model_version}")
     print(
         f"Interno util (L x P x A): "
         f"{dims['inner'][0]:.1f} x {dims['inner'][1]:.1f} x {dims['inner'][2]:.1f} mm"
@@ -580,21 +593,3 @@ def main() -> None:
     print(f"Externo (L x P x A): {dims['outer'][0]:.1f} x {dims['outer'][1]:.1f} x {dims['outer'][2]:.1f} mm")
     print(f"Parede/Fundo: {box.wall_thickness_mm:.1f} / {box.bottom_thickness_mm:.1f} mm")
     print(f"Depressao lateral (nominal/efetiva): {dep.depth_mm:.2f} / {dep_depth_effective:.2f} mm")
-
-    if opts.enable_preview:
-        try:
-            show_preview(body, lid, opts.debug_show_face_overlays, lid_spec.explode_offset_mm)
-        except Exception as exc:
-            print(f"Preview indisponivel no ambiente atual: {exc}")
-
-    if opts.export_stl:
-        cq.exporters.export(body, str(opts.path_body))
-        cq.exporters.export(lid, str(opts.path_lid))
-        cq.exporters.export(assembly, str(opts.path_assembly))
-        print(f"STL exportado (corpo) -> {opts.path_body.resolve()}")
-        print(f"STL exportado (tampa hex) -> {opts.path_lid.resolve()}")
-        print(f"STL exportado (assembly) -> {opts.path_assembly.resolve()}")
-
-
-if __name__ == "__main__":
-    main()
