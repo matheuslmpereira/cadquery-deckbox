@@ -8,6 +8,10 @@ from box_models import get_box_model, list_box_models
 from commander_deck_box import MODEL_VERSION, build_box_geometry, print_build_summary, show_preview
 from domain_specs import default_build_options
 
+try:
+    from ocp_vscode import show
+except ImportError:
+    show = None
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Renderiza caixa parametrizada de deck e exporta STL.")
@@ -74,10 +78,16 @@ def main() -> None:
     print_build_summary(model.label, MODEL_VERSION, dims, model.box, model.dep, dep_depth_effective)
 
     if opts.enable_preview:
-        try:
-            show_preview(body, lid, opts.debug_show_face_overlays, model.lid.explode_offset_mm)
-        except Exception as exc:
-            print(f"Preview indisponivel no ambiente atual: {exc}")
+        if show is not None:
+            try:
+                show(assembly, names=[f"{model.slug}_assembly"], colors=["lightgray"], axes=True, grid=True)
+            except Exception as exc:
+                print(f"Preview indisponivel no ambiente atual: {exc}")
+        else:
+            try:
+                show_preview(body, lid, opts.debug_show_face_overlays, model.lid.explode_offset_mm)
+            except Exception as exc:
+                print(f"Preview indisponivel no ambiente atual: {exc}")
 
     if opts.export_stl:
         cq.exporters.export(body, str(opts.path_body))
